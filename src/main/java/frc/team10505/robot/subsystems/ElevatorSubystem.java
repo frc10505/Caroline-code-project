@@ -8,6 +8,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.DutyCycle;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
+import edu.wpi.first.wpilibj.simulation.DutyCycleEncoderSim;
 import edu.wpi.first.wpilibj.simulation.ElevatorSim;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
@@ -19,6 +20,8 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import static frc.team10505.robot.subsystems.HardwareConstants.*;
+
+
 public class ElevatorSubystem extends SubsystemBase {
     /*Variables */
     //NOTE- many of our varibles' values are assigned in the constructor
@@ -33,6 +36,7 @@ public class ElevatorSubystem extends SubsystemBase {
 
     //encoder
     private final DutyCycleEncoder encoder = new DutyCycleEncoder(ELEV_ENCODER_CHANNEL);
+    private final DutyCycleEncoderSim simDutyCycle = new DutyCycleEncoderSim(ELEV_ENCODER_CHANNEL);
     private final double encoderOffset = 0;//TODO change irl
 
     //var for where the elevator height will try to get to. Until changed(w a method, typically bound to a button), it'll be 0
@@ -50,7 +54,7 @@ public class ElevatorSubystem extends SubsystemBase {
     private final MechanismRoot2d elevRightRoot = elevMech.getRoot("elevRoot", 1.25, 0.2);
     private final MechanismLigament2d elevRightViz = elevRoot.append(new MechanismLigament2d("elevRightViz", 2.1, 0, 10, new Color8Bit(Color.kSteelBlue)));
 
-    private final ElevatorSim elevSim = new ElevatorSim(DCMotor.getKrakenX60(2), ELEV_GEARING, 10, 0.1, 0, 5, true, simStartingHeight);
+    private final ElevatorSim elevSim = new ElevatorSim(DCMotor.getKrakenX60(2), ELEV_GEARING, 19, 0.1, 0, 5, true, simStartingHeight);
 
     /*constructor */
     public ElevatorSubystem(){

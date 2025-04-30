@@ -17,4 +17,5 @@ public class HardwareConstants {
     public static final int PIVOT_FLYWHEEL_MOTOR_ID = 7;
 
     public static final double ELEV_GEARING = 12;
+    public static final double INTAKE_GEARING = 5;
 }

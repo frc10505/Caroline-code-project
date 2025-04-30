@@ -7,4 +7,9 @@ public class Constants {
         public static final double ELEV_L3 = 23.5;
         public static final double ELEV_L4 = 48;
     }
+    
+    public class IntakeConstants{
+        public static final double INTAKE_SLOW = 0.3;
+        public static final double INTAKE_FAST = 0.6;
+    }
 }
