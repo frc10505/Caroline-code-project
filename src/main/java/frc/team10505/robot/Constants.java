@@ -9,7 +9,8 @@ public class Constants {
     }
     
     public class IntakeConstants{
-        public static final double INTAKE_SLOW = 0.3;
-        public static final double INTAKE_FAST = 0.6;
+        public static final double CORAL_SLOW_SPEED = 0.3;
+        public static final double CORAL_INTAKE_SPEED = 0.37;
+        public static final double CORAL_FAST_SPEED = 0.6;
     }
 }

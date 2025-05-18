@@ -24,7 +24,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import static frc.team10505.robot.subsystems.HardwareConstants.*;
 
-public class PivotSubsystem extends SubsystemBase {
+public class AlgaeSubsystem extends SubsystemBase {
     /*Variables */
     private final SparkMax pivotMotor = new SparkMax(PIVOT_MOTOR_ID, MotorType.kBrushless);
     private final SparkMax intakeMotor = new SparkMax(PIVOT_ALGAE_INTAKE_MOTOR_ID, MotorType.kBrushless);
@@ -48,7 +48,7 @@ public class PivotSubsystem extends SubsystemBase {
     private final FlywheelSim intakeSim = new FlywheelSim(LinearSystemId.createFlywheelSystem(DCMotor.getNEO(1), 0.01, 5), DCMotor.getNEO(1));
 
     /*Constructor */
-    public PivotSubsystem(){
+    public AlgaeSubsystem(){
         if(Utils.isSimulation()){
             controller = new PIDController(0.3, 0, 0);
             ffeController = new ArmFeedforward(0, 27.2, 0.1, 0.1);

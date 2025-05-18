@@ -11,4 +11,5 @@ public enum Tasks {
     DESCORE_ALGAE_LOW,
     BARGE_SHOT,
     SEEK_CORAL,
+    SEEK_REEF,
 }

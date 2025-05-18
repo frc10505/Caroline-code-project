@@ -16,6 +16,9 @@ public class HardwareConstants {
     public static final int PIVOT_MOTOR_ID = 6;
     public static final int PIVOT_ALGAE_INTAKE_MOTOR_ID = 7;
 
+    public static final int DRIVE_RIGHT_LASER_ID = 8;
+    public static final int DRIVE_LEFT_LASER_ID = 9;
+
     public static final double ELEV_GEARING = 12;
     public static final double INTAKE_GEARING = 5;
     public static final double PIVOT_GEARING = 1;

@@ -18,13 +18,13 @@ import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 
+import static frc.team10505.robot.Constants.IntakeConstants.*;
 import static frc.team10505.robot.subsystems.HardwareConstants.*;
 
-public class IntakeSubsystem extends SubsystemBase {
+public class CoralSubsystem extends SubsystemBase {
     /*Variables */
     private final double laserDistance = 50.0;//in millimeters. is used to compare to what a laser can currently reads
     private CommandJoystick joystick;
@@ -82,15 +82,16 @@ public class IntakeSubsystem extends SubsystemBase {
     /**Intended for use in real life. 
      * Gives a value to our laserCans
      */
-    public IntakeSubsystem(){
+    public CoralSubsystem(){
         firstLaser = new LaserCan(INTAKE_FIRST_LASER_ID);
         secondLaser = new LaserCan(INTAKE_SECOND_LASER_ID);
+
     }
 
     /**Intended for use in simulations.
      * Gives a value to a joystick
      */
-    public IntakeSubsystem(CommandJoystick joystick){
+    public CoralSubsystem(CommandJoystick joystick){
         this.joystick = joystick;
         leftMotorSim = new SparkSim(leftMotor, DCMotor.getNeo550(1));
         rightMotorSim = new SparkSim(rightMotor, DCMotor.getNeo550(1));
@@ -135,6 +136,24 @@ public class IntakeSubsystem extends SubsystemBase {
             speed = newSpeed;
         });
     }
+
+    public void seekingCoral(){
+        if(!seesFirstSensor() && !seesSecondSensor()){
+            leftMotor.set(CORAL_INTAKE_SPEED);
+            rightMotor.set(CORAL_INTAKE_SPEED);
+            speed = CORAL_INTAKE_SPEED;
+        } else if(seesFirstSensor() && !seesSecondSensor()) {
+            leftMotor.set(CORAL_SLOW_SPEED);
+            rightMotor.set(CORAL_SLOW_SPEED);
+            speed = CORAL_SLOW_SPEED;
+        } else {
+            leftMotor.set(0);
+            rightMotor.set(0);
+            speed = 0;
+        }
+    }
+
+
 
     /**This is a runEnd command. The end condition is setting the motor speeds to zero */
     public Command runIntake(double newSpeed){
