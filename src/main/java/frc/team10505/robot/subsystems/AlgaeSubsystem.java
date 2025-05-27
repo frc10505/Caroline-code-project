@@ -1,121 +1,192 @@
 package frc.team10505.robot.subsystems;
 
-import static frc.team10505.robot.subsystems.HardwareConstants.*;
-
 import com.ctre.phoenix6.Utils;
 import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.SparkAbsoluteEncoder;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-import static frc.team10505.robot.subsystems.HardwareConstants.*;
+import static frc.team10505.robot.Constants.HardwareConstants.*;
+import static frc.team10505.robot.Constants.AlgaeConstants.*;
 
 public class AlgaeSubsystem extends SubsystemBase {
-    /*Variables */
-    private final SparkMax pivotMotor = new SparkMax(PIVOT_MOTOR_ID, MotorType.kBrushless);
-    private final SparkMax intakeMotor = new SparkMax(PIVOT_ALGAE_INTAKE_MOTOR_ID, MotorType.kBrushless);
+    /* Variables */
+    // motor controllers
+    private final SparkMax intakeMotor = new SparkMax(ALGAE_INTAKE_MOTOR_ID, MotorType.kBrushless);
+    private final SparkMax pivotMotor = new SparkMax(ALGAE_PIVOT_MOTOR_ID, MotorType.kBrushless);
+    private final SparkMaxConfig intakeMotorConfig = new SparkMaxConfig();
+    private final SparkMaxConfig pivotMotorConfig = new SparkMaxConfig();
 
-    private final PIDController controller;
-    private final ArmFeedforward ffeController;
+    // Encoder
+    private double absoluteOffset = 180.0;
+    private final SparkAbsoluteEncoder pivotEncoder = pivotMotor.getAbsoluteEncoder();
 
-    private double setPoint;
-    private double speed;
+    // controllers
+    private final PIDController pivotController;
+    private final ArmFeedforward pivotFeedforward;
 
-    /*Simulation variables */
-    private double pivotStartingAngle = 50;
+    public final double startingAngle = ALGAE_PIVOT_DOWN;
+    private double pivotSetpoint = startingAngle;
+    public boolean coasting = false;
+    public double intakeSpeed = 0;// ONLY USED FOR LOGGING AND SIM
 
-    private final Mechanism2d mech = new Mechanism2d(2, 2);
-    private final MechanismRoot2d pivotRoot = mech.getRoot("pivot Root", 0.3, 0.5);
-    private final MechanismLigament2d pivotViz = pivotRoot.append(new MechanismLigament2d("Pivot Ligament", 0.4, pivotStartingAngle, 20, new Color8Bit(Color.kOrange)));
-    private final MechanismRoot2d intakeRoot = mech.getRoot("intake Root", Math.cos(Units.degreesToRadians(pivotStartingAngle)) * 0.4, Math.sin(Units.degreesToRadians(pivotStartingAngle)) * 0.4);
-    private final MechanismLigament2d intakeViz = intakeRoot.append(new MechanismLigament2d("algae Intake Ligament", 0.1, pivotStartingAngle, 10, new Color8Bit(Color.kBisque)));
+    // simulation of the PHYSICS of the mechanisms (this is what does the
+    // calculations/makes the sim useful & cool)
+    public final SingleJointedArmSim pivotSim = new SingleJointedArmSim(DCMotor.getNEO(1), 80,
+            SingleJointedArmSim.estimateMOI(0.305, 2), 0.305, Units.degreesToRadians(-120), Units.degreesToRadians(120),
+            true, Units.degreesToRadians(startingAngle));
 
-    private final SingleJointedArmSim pivotSim = new SingleJointedArmSim(DCMotor.getNEO(1), PIVOT_GEARING, SingleJointedArmSim.estimateMOI(0.3, 4), 0.3, Units.degreesToRadians(-110), Units.degreesToRadians(110), true, Units.degreesToRadians(pivotStartingAngle));
-    private final FlywheelSim intakeSim = new FlywheelSim(LinearSystemId.createFlywheelSystem(DCMotor.getNEO(1), 0.01, 5), DCMotor.getNEO(1));
-
-    /*Constructor */
-    public AlgaeSubsystem(){
-        if(Utils.isSimulation()){
-            controller = new PIDController(0.3, 0, 0);
-            ffeController = new ArmFeedforward(0, 27.2, 0.1, 0.1);
+    /* Our constructor */
+    public AlgaeSubsystem() {
+        if (Utils.isSimulation() || Utils.isReplay()) {
+            pivotController = new PIDController(1.6, 0, 0.0);
+            pivotFeedforward = new ArmFeedforward(0, 0.1719, 0);// 040, 040);
         } else {
-            controller = new PIDController(0, 0, 0);
-            ffeController = new ArmFeedforward(0, 1, 0.1, 0.1);
+            pivotController = new PIDController(0, 0, 0);// TODO TUNE IRL
+            pivotFeedforward = new ArmFeedforward(0.01, 0.1, 0.4, 0.1);// TODO TUNE IRL
         }
 
-        SmartDashboard.putData("Pivot Subsys sim", mech);
+        // pivot motor and encoder configs
+        pivotMotorConfig.idleMode(IdleMode.kBrake);
+        pivotMotorConfig.smartCurrentLimit(ALGAE_PIVOT_MOTOR_CURRENT_LIMIT, ALGAE_PIVOT_MOTOR_CURRENT_LIMIT);
+        pivotMotorConfig.absoluteEncoder.positionConversionFactor(ALGAE_PIVOT_ENCODER_SCALE);
+        pivotMotorConfig.absoluteEncoder.zeroOffset(ALGAE_PIVOT_ENCODER_OFFSET);
+        pivotMotor.configure(pivotMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+
+        // Intake motor config
+        intakeMotorConfig.idleMode(IdleMode.kBrake);
+        intakeMotorConfig.smartCurrentLimit(ALGAE_INTAKE_MOTOR_CURRENT_LIMIT, ALGAE_INTAKE_MOTOR_CURRENT_LIMIT);
+        intakeMotor.configure(intakeMotorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     }
 
-    /*Commands to reference */
-    public Command setAngle(double newAngle){
+    /* Methods */
+    // calculations
+    /** returns the pivot's position in degrees */
+    public double getPivotEncoder() {
+        if (Utils.isSimulation() || Utils.isReplay()) {
+            return Units.radiansToDegrees(pivotSim.getAngleRads());
+        } else {
+            return (-pivotEncoder.getPosition() + absoluteOffset);
+        }
+    }
+
+    public double getEffort() {
+        if (Utils.isSimulation()) {
+            return pivotFeedforward.calculateWithVelocities(Units.degreesToRadians(getPivotEncoder()), 0, 0)// TODO Mess
+                                                                                                            // with/figure
+                                                                                                            // out
+                    + pivotController.calculate(getPivotEncoder(), pivotSetpoint);
+        } else {
+            return pivotFeedforward.calculate(Units.degreesToRadians(getPivotEncoder()), 0)
+                    + pivotController.calculate(getPivotEncoder(), pivotSetpoint);
+        }
+    }
+
+    /* pivot commands to reference */
+    /** Standard command. Run once command that changes the setpoint of the pivot */
+    public Command setAngle(double angle) {
         return runOnce(() -> {
-            setPoint = newAngle;
+            pivotSetpoint = angle;
         });
     }
 
-    /**run end command that stops once an end condition is met */
-    public Command runIntake(double newSpeed){
-        return runEnd(() ->{
-            intakeMotor.set(newSpeed);
-            speed = newSpeed;
-        }, () ->{
+    /**
+     * Run command that continually sets the pivot motor voltage to the inputted
+     * parameter
+     */
+    public Command setVoltage(double voltage) {
+        return run(() -> {
+            pivotMotor.setVoltage(voltage);
+        });
+    }
+
+    /** run once command that stops the pivot motor and "disables" PID */
+    public Command stopPivot() {
+        return runOnce(() -> {
+            coasting = true;// stops pivot motor from being set to calculated pid effort
+            pivotMotor.stopMotor();
+        });
+    }
+
+    /** Changes the pivot idle mode to coast and "disables" PID */
+    public Command coastPivot() {
+        return run(() -> {
+            pivotMotorConfig.idleMode(IdleMode.kCoast);
+            coasting = true;// stops pivot motor from being set to calculated pid effort
+        });
+    }
+
+    /**
+     * Undoes the coastPivot command. Sets the pivot idle mode to brake and
+     * "enables" PID
+     */
+    public Command brakePivot() {
+        return run(() -> {
+            pivotMotorConfig.idleMode(IdleMode.kBrake);
+            pivotSetpoint = getPivotEncoder();
+            coasting = false;
+        });
+    }
+
+    /* intake commands to reference */
+    /**
+     * runOnce command that sets the intake motor to a speed of the inputted
+     * parameter
+     */
+    public Command setIntake(double speed) {
+        return runOnce(() -> {
+            intakeMotor.set(speed);
+            intakeSpeed = speed;
+        });
+    }
+
+    /** runOnce command that sets the intake motor to a speed of ZERO */
+    public Command stopIntake() {
+        return runOnce(() -> {
             intakeMotor.set(0);
-            speed = 0;
+            intakeSpeed = 0;
         });
-    }
-
-    /**runOnce command. Does not wait for an end condition and does not stop itself */
-    public Command setIntakeSpeed(double newSpeed){
-        return runOnce(() -> {
-            intakeMotor.set(newSpeed);
-            speed = newSpeed;
-        });
-    }
-
-    /*calculations */
-    private double getEncoder(){
-        if(Utils.isSimulation()){
-            return pivotViz.getAngle();
-        } else{
-            return 0;//TODO change irl
-        }
-    }
-
-    private double getEffort(){
-        return controller.calculate(getEncoder(), setPoint) + ffeController.calculate(Units.degreesToRadians(getEncoder()), 0);
     }
 
     @Override
-    public void periodic(){
-        SmartDashboard.putNumber("pivot encoder", getEncoder());
-        SmartDashboard.putNumber("Pivot effort", getEffort());
-        SmartDashboard.putNumber("Pivot_intake speed", speed);
-        SmartDashboard.putNumber("Pivot angle", setPoint);
-        pivotMotor.setVoltage(getEffort());
-        if(Utils.isSimulation()){
+    public void simulationPeriodic() {
+        if (!coasting) {
             pivotSim.setInput(getEffort());
-            pivotSim.update(0.001);
-            pivotViz.setAngle(Units.radiansToDegrees(pivotSim.getAngleRads()));
-
-            intakeSim.setInput(speed);
-            intakeSim.update(0.005);
-            intakeViz.setAngle(intakeViz.getAngle() + (speed * 0.05));
-
-            intakeRoot.setPosition(Math.cos(Units.degreesToRadians(pivotViz.getAngle())) * 0.4 + 0.3, Math.sin(Units.degreesToRadians(pivotViz.getAngle()) * 0.4 + 0.5));
         }
+        pivotSim.update(0.001);
+        SmartDashboard.putNumber("Pivot Encoder", getPivotEncoder());
+        SmartDashboard.putNumber("Pivot Sim Position", Units.radiansToDegrees
+        (pivotSim.getAngleRads()));
+
+    }
+
+    @Override
+    public void periodic() {
+        // dashboard stuff
+        SmartDashboard.putNumber("Pivot Setpoint", pivotSetpoint);
+        // SmartDashboard.putNumber("Pivot Encoder", getPivotEncoder());
+        SmartDashboard.putNumber("Pivot Calculated Effort", getEffort());
+        SmartDashboard.putNumber("Algae Intake Speed", intakeSpeed);
+
+        if (!Utils.isSimulation()) {
+            if (!coasting) {
+                pivotMotor.setVoltage(getEffort());
+            }
+            SmartDashboard.putNumber("Pivot Motor Output", pivotMotor.getAppliedOutput());
+            SmartDashboard.putNumber("Algae Intake Motor Output", intakeMotor.getAppliedOutput());
+        }
+
     }
 }

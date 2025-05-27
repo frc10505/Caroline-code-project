@@ -1,114 +1,202 @@
 package frc.team10505.robot.subsystems;
 
+import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.Utils;
+import com.ctre.phoenix6.configs.FeedbackConfigs;
+import com.ctre.phoenix6.configs.MotionMagicConfigs;
+import com.ctre.phoenix6.configs.MotorOutputConfigs;
+import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 
-import edu.wpi.first.math.controller.ElevatorFeedforward;
-import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.simulation.ElevatorSim;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-import static frc.team10505.robot.subsystems.HardwareConstants.*;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static edu.wpi.first.units.Units.RotationsPerSecondPerSecond;
+import static frc.team10505.robot.Constants.HardwareConstants.*;
 
 
 public class ElevatorSubystem extends SubsystemBase {
-    //boolean to make things goofier if changed to true
-    private final boolean sigma = false;
-    /*Variables */
-    //NOTE- many of our varibles' values are assigned in the constructor
-        //this is so that we can assign different values for the same variable based off if we are using a simulation or not
-    //motors
-    private final TalonFX elevatorMotor;
-    private final TalonFX elevatorMotorFollower;
+// Motors
+    public final TalonFX elevatorMotor;
+    public final TalonFX elevatorFollowerMotor;
 
-    //pid and feed forward controllers
-    private final PIDController controller;
-    private final ElevatorFeedforward ffeController;
+    private MotionMagicVoltage motionMagicVoltage;
 
-    //encoder
-    private final DutyCycleEncoder encoder = new DutyCycleEncoder(ELEV_ENCODER_CHANNEL);
-    private final double encoderOffset = 0;//TODO change irl
+    public final double startingHeight = 0;
+    private double height = startingHeight;
+    private double change = 0;
 
-    //var for where the elevator height will try to get to. Until changed(w a method, typically bound to a button), it'll be 0
-    private double setPoint = 0;
-    private double currentPos;
+    // simulation of the PHYSICS of the mechanisms (this is what does the
+    // calculations/makes the sim useful & cool)
+    public final ElevatorSim elevSim = new ElevatorSim(DCMotor.getKrakenX60(2), 12, 10, 0.05, 0.0, 3.0, true,
+            startingHeight);
+    public double simElevEncoder = startingHeight;
 
-    private double simStartingHeight = 2;
-
-    private final Color8Bit peru = new Color8Bit(Color.kPeru);
-    /*simulation variables */
-    private final Mechanism2d elevMech = new Mechanism2d(2, 4);
-    private final MechanismRoot2d elevRoot = elevMech.getRoot("elevRoot", 0.4, 0.2);
-    private final MechanismLigament2d elevViz = elevRoot.append(new MechanismLigament2d("elevViz", simStartingHeight, 0, 30, peru));
-
-    private final ElevatorSim elevSim = new ElevatorSim(DCMotor.getKrakenX60(2), ELEV_GEARING, 19, 0.1, 0, 5, true, simStartingHeight);
-
-    /*constructor */
-    public ElevatorSubystem(){
-        SmartDashboard.putData("Elevator Sim", elevMech);
-        if(Utils.isSimulation()){
-            elevatorMotor = new TalonFX(ELEV_MOTOR_ID);
-            elevatorMotorFollower = new TalonFX(ELEV_MOTOR_FOLLOWER_ID);
-
-            controller = new PIDController(0, 0, 0);//TODO tune
-            ffeController = new ElevatorFeedforward(0, 1, 0); //TODO tune
-
-        }else{
-            elevatorMotor = new TalonFX(ELEV_MOTOR_ID, canbusName);
-            elevatorMotorFollower = new TalonFX(ELEV_MOTOR_FOLLOWER_ID, canbusName);
-
-            controller = new PIDController(1, 0, 0);//TODO change irl
-            ffeController = new ElevatorFeedforward(0, 1, 0);//TODO change irl
+    /* Constructor */
+    public ElevatorSubystem() {
+        if (Utils.isSimulation() || Utils.isReplay()) {
+            elevatorMotor = new TalonFX(ELEVATOR_MOTOR_ID);
+            elevatorFollowerMotor = new TalonFX(ELEVATOR_FOLLOWER_MOTOR_ID);
+            motionMagicVoltage = new MotionMagicVoltage(startingHeight);// use starting position(position is
+                                                                        // changed periodically)
+        } else {
+            elevatorMotor = new TalonFX(ELEVATOR_MOTOR_ID, "kingKan");
+            elevatorFollowerMotor = new TalonFX(ELEVATOR_FOLLOWER_MOTOR_ID, "kingKan");
+            motionMagicVoltage = new MotionMagicVoltage(startingHeight);// use starting position(position is changed
+                                                                        // periodically)
         }
+
+        /* Motor configs */
+        TalonFXConfiguration cfg = new TalonFXConfiguration();
+
+        // motor output configs. sets the neutral mode to brake (could set it to coast)
+        MotorOutputConfigs motorOutput = cfg.MotorOutput;
+        motorOutput.NeutralMode = NeutralModeValue.Brake;
+
+        // TODO maybe add back IRL
+        // current limit configs. prevents the motors from using more current that theb
+        // limit(saves our battery!)
+        // CurrentLimitsConfigs currentLimits = cfg.CurrentLimits;
+        // currentLimits.StatorCurrentLimit = ELEVATOR_MOTOR_CURRENT_LIMIT;
+
+        // feedback configs. informs the system of the gearstack (could do more stuff
+        // relevant to sensor and mechanism coorelation)
+        FeedbackConfigs fdb = cfg.Feedback;
+        fdb.SensorToMechanismRatio = ELEVATOR_GEARSTACK;
+
+        // Motion magic configs. sets up the motion magic for us to referense
+        MotionMagicConfigs motionMagic = cfg.MotionMagic;
+        motionMagic.withMotionMagicCruiseVelocity(RotationsPerSecond.of(20))
+                .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(40));
+
+        // Slot 0 configs. Creates one set of configs that can be applied to motion
+        // magic
+        Slot0Configs slot0 = cfg.Slot0;
+
+        /* gains for pid and ffe */
+        if (Utils.isSimulation() || Utils.isReplay()) {
+
+            slot0.kS = 0.0; // counters static friction(there is none in a simulation)
+            slot0.kV = 0.12; // for velocity /*KARTER - this number should ALWAYS BE LOW */
+            slot0.kA = 0.01; // for acceleration /*KARTER - this number should ALWAYS BE LOW */
+            slot0.kG = 0.5297854 / 2.947; /* counters gravity, added by us(not in documentation) */
+            slot0.kP = 26;
+            slot0.kI = 0; // No output for integrated error /*COOPER- this number should ALWAYS BE ZERO */
+            slot0.kD = 0.5; /* COOPER - this number should ALWAYS BE SUPER LOW OR ZERO */
+        } else {
+            slot0.kS = 0.05; // counters static friction
+            slot0.kV = 0.12; // for velocity /*KARTER - this number should ALWAYS BE LOW */
+            slot0.kA = 0.01; // for acceleration /*KARTER - this number should ALWAYS BE LOW */
+            slot0.kG = 0.0; /* counters gravity, added by us(not in documentation) */
+            slot0.kP = 26;
+            slot0.kI = 0; // No output for integrated error/*COOPER- this number should ALWAYS BE ZERO */
+            slot0.kD = 0.0; /* COOPER - this number should ALWAYS BE SUPER LOW OR ZERO */
+        }
+
+        StatusCode leaderStatus = StatusCode.StatusCodeNotInitialized;
+        for (int i = 0; i < 5; ++i) {
+            leaderStatus = elevatorMotor.getConfigurator().apply(cfg);
+            if (leaderStatus.isOK())
+                break;
+        }
+        if (!leaderStatus.isOK()) {
+            System.out.println("Could not configure Elevator Motor. Error: " + leaderStatus.toString());
+        }
+
+        StatusCode followerStatus = StatusCode.StatusCodeNotInitialized;
+        for (int i = 0; i < 5; ++i) {
+            followerStatus = elevatorFollowerMotor.getConfigurator().apply(cfg);
+            if (followerStatus.isOK())
+                break;
+        }
+        if (!followerStatus.isOK()) {
+            System.out.println("Could not configure Elevator Leader Motor. Error: " + followerStatus.toString());
+        }
+
+        elevatorFollowerMotor.setControl(new Follower(elevatorMotor.getDeviceID(), false));
     }
-    
-    /*Commands to referense */    
-    public Command setHeight(double newHeight){
+
+    /* commands to referense */
+    /**
+     * changes our setpoint, which changes our pid calcuations therefore effort to
+     * the motor, which happens periodically
+     */
+    public Command setHeight(double newHeight) {
         return runOnce(() -> {
-            setPoint = newHeight;
+            height = newHeight;
         });
     }
 
-    /*calulations */
-    private double getEncoder(){
-        if(Utils.isSimulation()){
-            return elevViz.getLength();
-        }else{
-            return (encoder.get() * 360) - encoderOffset;
-        }
-    }
-    
-    //method to calculate what voltage to set the motors to
-    private double getEffort(){
-        return controller.calculate(currentPos, setPoint) + ffeController.calculate(0);
+    /** run end command that sets the elev motors' voltages to 0 upon ending */
+    public Command runMotor(double voltage) {
+        return runEnd(() -> {
+            elevatorMotor.setVoltage(voltage);
+        },
+                () -> {
+                    elevatorMotor.setVoltage(0);
+                });
     }
 
-    /*periodic method */
+    /* Calculations */
+    public double getElevatorEncoder() {
+        if (Utils.isSimulation() || Utils.isReplay()) {
+            return simElevEncoder;//elevSim.getPositionMeters();
+        } else {
+            return (elevatorMotor.getRotorPosition().getValueAsDouble() * (Math.PI * 1.751 * 2) / 12.0) * -1.0;
+        }
+    }
+
+    /** returns true if the encoder is within 2 units of our setpoint */
+    public boolean isNearGoal() {
+        return MathUtil.isNear(height, getElevatorEncoder(), 2);
+    }
+
+    /** returns true if the encoder is above 30 */
+    public boolean issGigh() {
+        return getElevatorEncoder() > 30;
+    }
+
+    /** returns true if the encoder is above the inputted parameter */
+    public boolean isAbove(double heightOfChoice) {
+        return getElevatorEncoder() > heightOfChoice;
+    }
+
     @Override
-    public void periodic(){
-        elevatorMotor.setVoltage(getEffort());
-        if(Utils.isSimulation()){
-            elevSim.setInput(elevatorMotor.getMotorVoltage().getValueAsDouble());
-            elevSim.update(0.01);
-            elevViz.setLength(elevSim.getPositionMeters());
+    public void simulationPeriodic() {
+       elevSim.setInput(elevatorMotor.getMotorVoltage().getValueAsDouble() * 2);
+       elevSim.update(0.001);
+       simElevEncoder = elevSim.getPositionMeters();
+    }
+
+    @Override
+    public void periodic() {
+        // dashboard stuff
+        SmartDashboard.putNumber("Elevator Encoder", getElevatorEncoder());
+        SmartDashboard.putNumber("Elevator Height", height);
+        SmartDashboard.putNumber("change", change);
+        SmartDashboard.putNumber("Elevator set voltage", elevatorMotor.getMotorVoltage().getValueAsDouble());
+
+
+        if (!Utils.isSimulation()) {
+            SmartDashboard.putNumber("Elevator set voltage", elevatorMotor.getMotorVoltage().getValueAsDouble());
+            SmartDashboard.putNumber("Elevator follower set voltage", elevatorFollowerMotor.getMotorVoltage().getValueAsDouble());
+            SmartDashboard.putNumber("Elevator Lead Motor Position", elevatorMotor.getPosition().getValueAsDouble());
+            SmartDashboard.putNumber("Elevator Follower Motor Position", elevatorFollowerMotor.getPosition().getValueAsDouble());
+            SmartDashboard.putNumber("Elevator Lead Motor Rotor Position", elevatorMotor.getRotorPosition().getValueAsDouble());
+            SmartDashboard.putNumber("Elevator Follower Motor Rotor Position", elevatorFollowerMotor.getPosition().getValueAsDouble());
         }
 
-        if(sigma){
-            elevViz.setColor(new Color8Bit(new Color(Math.random(), Math.random(), Math.random())));
-        }
-
-        SmartDashboard.putNumber("Elev setpoint", setPoint);
-        SmartDashboard.putNumber("Elev encoder", getEncoder());
-        SmartDashboard.putNumber("Elev Motor Output", elevatorMotor.getMotorVoltage().getValueAsDouble());
-        SmartDashboard.putNumber("Elev Motor Follower Output", elevatorMotorFollower.getMotorVoltage().getValueAsDouble());
+        // motor controlling stuff
+        change = height - getElevatorEncoder();
+        elevatorMotor.setControl(motionMagicVoltage.withPosition(change).withSlot(0));
     }
 }

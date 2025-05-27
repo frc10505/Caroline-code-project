@@ -1,10 +1,6 @@
-package frc.team10505.robot.subsystems;
+package frc.team10505.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.wpilibj2.command.Commands.none;
-import static frc.team10505.robot.subsystems.HardwareConstants.*;
-
-import java.util.List;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
@@ -13,39 +9,24 @@ import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.path.GoalEndState;
-import com.pathplanner.lib.path.PathConstraints;
-import com.pathplanner.lib.path.PathPlannerPath;
-import com.pathplanner.lib.path.Waypoint;
-
-import au.grapplerobotics.LaserCan;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
-import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import frc.team10505.robot.Poses;
-import frc.team10505.robot.generated.TunerConstants;
-import frc.team10505.robot.generated.TunerConstants.TunerSwerveDrivetrain;
+import frc.team10505.robot.subsystems.drive.generated.TunerConstants.TunerSwerveDrivetrain;
 
 public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsystem {
-    private SwerveRequest.ApplyRobotSpeeds robotDrive = new SwerveRequest.ApplyRobotSpeeds();
-
-    private final LaserCan rightLaser = new LaserCan(DRIVE_RIGHT_LASER_ID);
-    private final LaserCan leftLaser = new LaserCan(DRIVE_LEFT_LASER_ID);
-
-    private CommandJoystick joystick;
-
     private static final double kSimLoopPeriod = 0.005; // 5 ms
     private Notifier m_simNotifier = null;
     private double m_lastSimTime;
@@ -128,29 +109,25 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
 
     // Three constructors that use different parameters
     public DrivetrainSubsystem(
-            CommandJoystick joystick,
             SwerveDrivetrainConstants drivetrainConstants,
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, modules);
         if (Utils.isSimulation()) {
             startSimThread();
-            this.joystick = joystick;
         }
     }
+
     public DrivetrainSubsystem(
-            CommandJoystick joystick,
             SwerveDrivetrainConstants drivetrainConstants,
             double odometryUpdateFrequency,
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, modules);
         if (Utils.isSimulation()) {
             startSimThread();
-            this.joystick = joystick;
         }
     }
 
     public DrivetrainSubsystem(
-            CommandJoystick joystick,
             SwerveDrivetrainConstants drivetrainConstants,
             double odometryUpdateFrequency,
             Matrix<N3, N1> odometryStandardDeviation,
@@ -160,7 +137,6 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
                 modules);
         if (Utils.isSimulation()) {
             startSimThread();
-            this.joystick = joystick;
         }
     }
 
@@ -176,7 +152,6 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
-  
     /**
      * Runs the SysId Quasistatic test in the given direction for the routine
      * specified by {@link #m_sysIdRoutineToApply}.
@@ -198,8 +173,6 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
     public Command sysIdDynamic(SysIdRoutine.Direction direction) {
         return m_sysIdRoutineToApply.dynamic(direction);
     }
-
-   
 
     @Override
     public void periodic() {
@@ -226,38 +199,6 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         }
     }
 
-    public boolean seesLeftSensor() {
-        if (Utils.isSimulation() || Utils.isReplay()) {
-            return joystick.button(3).getAsBoolean();
-
-        } else {
-            try {
-                LaserCan.Measurement leftMeas = leftLaser.getMeasurement();
-                return (leftMeas.distance_mm < 290
-                        && leftMeas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT);
-            } catch (NullPointerException l) {
-                SmartDashboard.putString("Errors", "drivetrain left laser meas failed");
-                return false;
-            }
-        }
-    }
-
-    public boolean seesRightSensor() {
-        if (Utils.isSimulation() || Utils.isReplay()) {
-          return joystick.button(4).getAsBoolean();
-
-        } else {
-            try {
-                LaserCan.Measurement RightMeas = rightLaser.getMeasurement();
-                return (RightMeas.distance_mm < 290 && RightMeas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT);
-
-            } catch (NullPointerException r) {
-                SmartDashboard.putString("Errors", "drivetrain right laser meas failed");
-                return false;
-            }
-        }
-    }
-
     private void startSimThread() {
         m_lastSimTime = Utils.getCurrentTimeSeconds();
 
@@ -273,20 +214,19 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         m_simNotifier.startPeriodic(kSimLoopPeriod);
     }
 
+    public void configPathPlanner(SendableChooser<Command> autochooser) {
+        try {
+            AutoBuilder.configure(() -> getState().Pose, this::resetPose, () -> getState().Speeds,
+                    (speeds, feedforward) -> setControl(m_pathApplyRobotSpeeds.withSpeeds(speeds)
+                            .withWheelForceFeedforwardsX(feedforward.robotRelativeForcesXNewtons())
+                            .withWheelForceFeedforwardsY(feedforward.robotRelativeForcesYNewtons())),
+                    new PPHolonomicDriveController(new PIDConstants(10, 0, 0), new PIDConstants(7, 0, 0)),
+                    RobotConfig.fromGUISettings(),
+                    () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red, this);
 
-
-    private PathConstraints constraints = new PathConstraints(3.0,
-        3.0, Units.degreesToRadians(180), Units.degreesToRadians(180));
-
-    public Command goToReef(List<Waypoint> waypoints, double endRotation){
-        try{
-            PathPlannerPath flypath = new PathPlannerPath(waypoints, constraints, null, new GoalEndState(0.0, Rotation2d.fromDegrees(endRotation)));
-            flypath.preventFlipping = true;
-
-            return AutoBuilder.followPath(flypath);
-        } catch (Exception e){
-            SmartDashboard.putString("Errors", "Flypath failed!!");
-            return none();
+            autochooser = AutoBuilder.buildAutoChooser();
+        } catch (Exception e) {
+            DriverStation.reportError("PATHPLANNER FAILED", e.getStackTrace());
         }
     }
 

@@ -12,4 +12,5 @@ public enum Tasks {
     BARGE_SHOT,
     SEEK_CORAL,
     SEEK_REEF,
+    SEEK_BARGE
 }
