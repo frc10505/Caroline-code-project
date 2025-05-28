@@ -5,12 +5,14 @@ import static frc.team10505.robot.Constants.HardwareConstants.*;
 import com.ctre.phoenix6.Utils;
 
 import au.grapplerobotics.LaserCan;
+
+import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 
-public class Lasers extends SubsystemBase {
+public class Lasers extends SubsystemBase{
     private LaserCan rightLaser;
     private LaserCan leftLaser;
 
@@ -20,7 +22,8 @@ public class Lasers extends SubsystemBase {
         BOTH,
         NEITHER,
         RIGHT,
-        LEFT
+        LEFT,
+        IDLE
     }
 
     public LEDState currentLedState = LEDState.NEITHER;
@@ -79,6 +82,13 @@ public class Lasers extends SubsystemBase {
         }
     }
 
+    public void setLedIdleMode(){
+        currentLedState = LEDState.IDLE;
+        if(!Utils.isSimulation()){
+            leds.set(-0.45);//rainbow color waves
+        }
+    }
+
     public void updateLedState() {
         if (seesRightSensor() && seesLeftSensor()) {
             currentLedState = LEDState.BOTH;
@@ -93,6 +103,7 @@ public class Lasers extends SubsystemBase {
 
     @Override
     public void periodic() {
+        if(!RobotState.isDisabled()){
         updateLedState();
         SmartDashboard.putBoolean("Drive Right Laser", seesRightSensor());
         SmartDashboard.putBoolean("Drive Left Laser", seesLeftSensor());
@@ -107,6 +118,10 @@ public class Lasers extends SubsystemBase {
                 leds.set(0.61);// solid red
             }
         }
-
+    } else {
+        if(currentLedState != LEDState.IDLE){
+            setLedIdleMode();
+        }
+    } 
     }
 }

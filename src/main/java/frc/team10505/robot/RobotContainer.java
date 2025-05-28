@@ -3,9 +3,12 @@ package frc.team10505.robot;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.pathplanner.lib.auto.NamedCommands;
 
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import static edu.wpi.first.wpilibj2.command.Commands.*;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.team10505.robot.subsystems.ElevatorSubystem;
@@ -49,6 +52,7 @@ public class RobotContainer {
     private final Pathplanning flypath = new Pathplanning();
     private final Lasers lasers;
     private Simulation simulation;
+    private final Superstructure superstructure;
 
     private Tasks task = Tasks.TRAVEL;
     private boolean leftSide = false;
@@ -56,6 +60,7 @@ public class RobotContainer {
     private SendableChooser<Double> polarityChooser = new SendableChooser<>();
     private SendableChooser<ReefSpot> nextReefSpotChooser = new SendableChooser<>();
     private SendableChooser<Double> nextLevelChooser = new SendableChooser<>();
+    public SendableChooser<Command> autoChooser;
 
     public RobotContainer() {
         if (Utils.isSimulation()) {
@@ -69,31 +74,25 @@ public class RobotContainer {
             configButtonBindings();
         }
 
-        SmartDashboard.putData("Polarity", polarityChooser);
-        polarityChooser.setDefaultOption("Positive", 1.0);
-        polarityChooser.addOption("negative", -1.0);
+        superstructure = new Superstructure(algaeSubsys, coralSubsys, elevSubsys, driveSubsys);
 
-        SmartDashboard.putData("Next Level", nextLevelChooser);
-        nextLevelChooser.setDefaultOption("L1", 1.0);
-        nextLevelChooser.addOption("L2", 2.0);
-        nextLevelChooser.addOption("L3", 3.0);
-        nextLevelChooser.addOption("L4", 4.0);
 
-        SmartDashboard.putData("Next Reef Spot", nextReefSpotChooser);
-        nextReefSpotChooser.setDefaultOption("A (Left Side, Front Center)", ReefSpot.A);
-        nextReefSpotChooser.addOption("B (Right Side, Front Center)", ReefSpot.B);
-        nextReefSpotChooser.addOption("C (Left Side, Front Right)", ReefSpot.C);
-        nextReefSpotChooser.addOption("D (Right Side, Front Right)", ReefSpot.D);
-        nextReefSpotChooser.addOption("E (Left Side, Back Right)", ReefSpot.E);
-        nextReefSpotChooser.addOption("F (Right Side, Back Right)", ReefSpot.F);
-        nextReefSpotChooser.addOption("G (Left Side, Back Center)", ReefSpot.G);
-        nextReefSpotChooser.addOption("H (Right Side, Back Center)", ReefSpot.H);
-        nextReefSpotChooser.addOption("I (Left Side, Back Left)", ReefSpot.I);
-        nextReefSpotChooser.addOption("J (Right Side, Back Left)", ReefSpot.J);
-        nextReefSpotChooser.addOption("K (Left Side, Front Left)", ReefSpot.K);
-        nextReefSpotChooser.addOption("L (Right Side, Front Left)", ReefSpot.L);
-
+        //calling everying config cause its fun lol
+        configNamedCommands();
+        driveSubsys.configAutoBuilder(autoChooser);
+        //configSendableChoosers();
         configDefaultCommands();
+    }
+
+    private void configNamedCommands(){
+        NamedCommands.registerCommand("Test", print("Named Commands Test"));
+
+        NamedCommands.registerCommand("Elev Down", elevSubsys.setHeight(ELEV_DOWN));
+        NamedCommands.registerCommand("Elev L2", elevSubsys.setHeight(ELEV_L2));
+        NamedCommands.registerCommand("Elev L3", elevSubsys.setHeight(ELEV_L3));
+        NamedCommands.registerCommand("Elev L4", elevSubsys.setHeight(ELEV_L4));
+
+        
     }
 
     private void configDefaultCommands() {
@@ -125,6 +124,34 @@ public class RobotContainer {
         joystick2.button(4).onTrue(coralSubsys.runIntake(CORAL_SLOW_SPEED).until(() ->
         coralSubsys.inSensor()&& coralSubsys.outSensor()));
 
+    }
+
+    private void configSendableChoosers(){
+        SmartDashboard.putData("Polarity Chooser", polarityChooser);
+        polarityChooser.setDefaultOption("Positive", 1.0);
+        polarityChooser.addOption("negative", -1.0);
+
+        SmartDashboard.putData("Next Level Chooser", nextLevelChooser);
+        nextLevelChooser.setDefaultOption("L1", 1.0);
+        nextLevelChooser.addOption("L2", 2.0);
+        nextLevelChooser.addOption("L3", 3.0);
+        nextLevelChooser.addOption("L4", 4.0);
+
+        SmartDashboard.putData("Next Reef Spot Chooser", nextReefSpotChooser);
+        nextReefSpotChooser.setDefaultOption("A (Left Side, Front Center)", ReefSpot.A);
+        nextReefSpotChooser.addOption("B (Right Side, Front Center)", ReefSpot.B);
+        nextReefSpotChooser.addOption("C (Left Side, Front Right)", ReefSpot.C);
+        nextReefSpotChooser.addOption("D (Right Side, Front Right)", ReefSpot.D);
+        nextReefSpotChooser.addOption("E (Left Side, Back Right)", ReefSpot.E);
+        nextReefSpotChooser.addOption("F (Right Side, Back Right)", ReefSpot.F);
+        nextReefSpotChooser.addOption("G (Left Side, Back Center)", ReefSpot.G);
+        nextReefSpotChooser.addOption("H (Right Side, Back Center)", ReefSpot.H);
+        nextReefSpotChooser.addOption("I (Left Side, Back Left)", ReefSpot.I);
+        nextReefSpotChooser.addOption("J (Right Side, Back Left)", ReefSpot.J);
+        nextReefSpotChooser.addOption("K (Left Side, Front Left)", ReefSpot.K);
+        nextReefSpotChooser.addOption("L (Right Side, Front Left)", ReefSpot.L);
+
+        SmartDashboard.putData("Auto Chooser", autoChooser);
     }
 
     // private Command changeLevel(double newLevel){

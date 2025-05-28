@@ -214,7 +214,8 @@ public class DrivetrainSubsystem extends TunerSwerveDrivetrain implements Subsys
         m_simNotifier.startPeriodic(kSimLoopPeriod);
     }
 
-    public void configPathPlanner(SendableChooser<Command> autochooser) {
+    /**This method should be called AFTER registering the Named Commands */
+    public void configAutoBuilder(SendableChooser<Command> autochooser) {
         try {
             AutoBuilder.configure(() -> getState().Pose, this::resetPose, () -> getState().Speeds,
                     (speeds, feedforward) -> setControl(m_pathApplyRobotSpeeds.withSpeeds(speeds)

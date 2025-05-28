@@ -5,6 +5,7 @@
 package frc.team10505.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 /**
@@ -20,6 +21,11 @@ public class Robot extends TimedRobot {
   public Robot() {}
 
   private RobotContainer robotContainer = new RobotContainer();
+  private Command autonCommand;
+
+  @Override
+  public void robotInit(){
+  }
 
   @Override
   public void robotPeriodic() {
@@ -27,19 +33,31 @@ public class Robot extends TimedRobot {
   }
 
   @Override
-  public void autonomousInit() {}
+  public void autonomousInit() {
+    autonCommand = robotContainer.autoChooser.getSelected();
+    if(autonCommand != null){
+      autonCommand.schedule();
+    }
+  }
 
   @Override
-  public void autonomousPeriodic() {}
+  public void autonomousPeriodic() {
+  }
 
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    if(autonCommand != null){
+      autonCommand.cancel();
+    }
+  }
 
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+  }
 
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+  }
 
   @Override
   public void disabledPeriodic() {}
@@ -50,7 +68,8 @@ public class Robot extends TimedRobot {
   }
 
   @Override
-  public void testPeriodic() {}
+  public void testPeriodic() {
+  }
 
   @Override
   public void simulationInit() {}
