@@ -8,7 +8,6 @@ import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import static edu.wpi.first.wpilibj2.command.Commands.*;
 import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.team10505.robot.subsystems.ElevatorSubystem;
@@ -21,14 +20,13 @@ import frc.team10505.robot.subsystems.CoralSubsystem;
 import frc.team10505.robot.simulation.Simulation;
 import frc.team10505.robot.subsystems.AlgaeSubsystem;
 
+import static edu.wpi.first.wpilibj2.command.Commands.*;
+import static frc.team10505.robot.Constants.AlgaeConstants.*;
 import static frc.team10505.robot.Constants.ElevatorConstants.*;
-import static frc.team10505.robot.Constants.IntakeConstants.CORAL_FAST_SPEED;
-import static frc.team10505.robot.Constants.IntakeConstants.CORAL_INTAKE_SPEED;
-import static frc.team10505.robot.Constants.IntakeConstants.CORAL_SLOW_SPEED;
+import static frc.team10505.robot.Constants.IntakeConstants.*;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
-import static frc.team10505.robot.Constants.AlgaeConstants.*;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
@@ -74,13 +72,12 @@ public class RobotContainer {
             configButtonBindings();
         }
 
-        superstructure = new Superstructure(algaeSubsys, coralSubsys, elevSubsys, driveSubsys);
+        superstructure = new Superstructure(algaeSubsys, coralSubsys, elevSubsys, driveSubsys, lasers);
 
-
-        //calling everying config cause its fun lol
+        //configs and stuff neccessary for initialization
         configNamedCommands();
         driveSubsys.configAutoBuilder(autoChooser);
-        //configSendableChoosers();
+        configSendableChoosers();
         configDefaultCommands();
     }
 
@@ -92,6 +89,8 @@ public class RobotContainer {
         NamedCommands.registerCommand("Elev L3", elevSubsys.setHeight(ELEV_L3));
         NamedCommands.registerCommand("Elev L4", elevSubsys.setHeight(ELEV_L4));
 
+        NamedCommands.registerCommand("Intake Coral", superstructure.intakeCoral());
+        
         
     }
 
@@ -118,7 +117,7 @@ public class RobotContainer {
 
 
         joystick2.button(1).onTrue(coralSubsys.setIntake(CORAL_SLOW_SPEED));
-        joystick2.button(2).onTrue(coralSubsys.setIntake(CORAL_FAST_SPEED));
+        joystick2.button(2).onTrue(coralSubsys.setIntake(CORAL_SCORE_SPEED));
         joystick2.button(3).onTrue(coralSubsys.runIntake(CORAL_INTAKE_SPEED).until(() ->
         coralSubsys.inSensor()));
         joystick2.button(4).onTrue(coralSubsys.runIntake(CORAL_SLOW_SPEED).until(() ->
@@ -150,8 +149,6 @@ public class RobotContainer {
         nextReefSpotChooser.addOption("J (Right Side, Back Left)", ReefSpot.J);
         nextReefSpotChooser.addOption("K (Left Side, Front Left)", ReefSpot.K);
         nextReefSpotChooser.addOption("L (Right Side, Front Left)", ReefSpot.L);
-
-        SmartDashboard.putData("Auto Chooser", autoChooser);
     }
 
     // private Command changeLevel(double newLevel){
@@ -181,7 +178,7 @@ public class RobotContainer {
 
                 break;
             case SEEK_BARGE:
-                    SmartDashboard.putString("Case Message", "Cse is Seek Barge");
+                    SmartDashboard.putString("Case Message", "Case is Seek Barge");
 
                     algaeSubsys.setIntake(ALGAE_HOLD_SPEED);
                     driveSubsys.applyRequest(() -> robotDrive.withVelocityX(-1)).withTimeout(0.3);

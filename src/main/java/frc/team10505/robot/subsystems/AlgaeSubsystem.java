@@ -152,11 +152,31 @@ public class AlgaeSubsystem extends SubsystemBase {
         });
     }
 
-    /** runOnce command that sets the intake motor to a speed of ZERO */
+    /** runOnce command that sets the intake motor to a speed of 0 */
     public Command stopIntake() {
         return runOnce(() -> {
             intakeMotor.set(0);
             intakeSpeed = 0;
+        });
+    }
+
+    /**runEnd command that sets the intake motor to the inputted speed, then w/ the end, sets the speed to 0 */
+    public Command runIntake(double speed){
+        return runEnd(()->{
+            intakeMotor.set(speed);
+            intakeSpeed = speed;
+        }, ()->{
+            intakeMotor.set(0);
+            intakeSpeed = 0;
+        });
+    }
+
+    /**runOnce command that sets the intake motor to zero and the pivot to DOWN */
+    public Command setToTravel(){
+        return runOnce(() ->{
+            intakeMotor.set(0);
+            intakeSpeed = 0;
+            pivotSetpoint = ALGAE_PIVOT_DOWN;
         });
     }
 

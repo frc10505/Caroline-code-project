@@ -53,12 +53,18 @@ public class Constants {
         public static final double ELEV_L2 = 8;
         public static final double ELEV_L3 = 23.5;
         public static final double ELEV_L4 = 48;
+        public static final double ELEV_L4_BUMP = 55;
+
+        public static final double ELEV_BARGE = 55.5;
+
     }
 
     public class IntakeConstants {
         public static final double CORAL_SLOW_SPEED = 0.3;
         public static final double CORAL_INTAKE_SPEED = 0.37;
-        public static final double CORAL_FAST_SPEED = 0.6;
+        public static final double CORAL_SCORE_SPEED = 0.25;
+        public static final double CORAL_SCORE_L4_SPEED = 0.05;
+
 
         public final static double CORAL_TROUGH_LEFT_SPEED = 0.5;
     public final static double CORAL_TROUGH_RIGHT_SPEED = 0.225;
@@ -68,9 +74,13 @@ public class Constants {
         public static final double ALGAE_PIVOT_DOWN = -90;
         public static final double ALGAE_PIVOT_UP = 90;
         public static final double ALGAE_PIVOT_OUT = 0;
+        public static final double ALGAE_PIVOT_HOLD_ABOVE = 13;//TODO made up number
+        public static final double ALGAE_PIVOT_HOLD_BELOW = -13;
+
 
         public static final double ALGAE_INTAKE_SPEED = 0.6;// TODO made up random number
         public static final double ALGAE_HOLD_SPEED = 0.05;// TODO made up random number
+        public static final double ALGAE_SLOW_SPEED = 0.3;
     }
 
     public class VisionConstants{    

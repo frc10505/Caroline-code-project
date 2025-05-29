@@ -18,7 +18,7 @@ import static frc.team10505.robot.Constants.IntakeConstants.*;
 import static frc.team10505.robot.Constants.HardwareConstants.*;
 
 public class CoralSubsystem extends SubsystemBase {
-   // Motor controllers
+    // Motor controllers
     private final SparkMax intakeLeft = new SparkMax(CORAL_LEFT_MOTOR_ID, MotorType.kBrushless);
     private final SparkMax intakeRight = new SparkMax(CORAL_RIGHT_MOTOR_ID, MotorType.kBrushless);
     private final SparkMaxConfig intakeLeftConfig = new SparkMaxConfig();
@@ -64,7 +64,10 @@ public class CoralSubsystem extends SubsystemBase {
     }
 
     /* Calculations */
-    /** returns true if the laser reads a distance less than 50mm, or in sim, if joystick button 1 is pressed */
+    /**
+     * returns true if the laser reads a distance less than 50mm, or in sim, if
+     * joystick button 1 is pressed
+     */
     public boolean inSensor() {
         if (Utils.isSimulation()) {
             return joystick.button(1).getAsBoolean();
@@ -74,7 +77,10 @@ public class CoralSubsystem extends SubsystemBase {
         }
     }
 
-    /**returns true if the laser reads a distance less than 50mm, or in sim, if joystick button 2 is pressed*/
+    /**
+     * returns true if the laser reads a distance less than 50mm, or in sim, if
+     * joystick button 2 is pressed
+     */
     public boolean outSensor() {
         if (Utils.isSimulation()) {
             return joystick.button(2).getAsBoolean();
@@ -100,7 +106,7 @@ public class CoralSubsystem extends SubsystemBase {
         });
     }
 
-    public Command setIntake(double speed){
+    public Command setIntake(double speed) {
         return runOnce(() -> {
             intakeLeft.set(speed);
             intakeRight.set(speed);
@@ -109,23 +115,10 @@ public class CoralSubsystem extends SubsystemBase {
         });
     }
 
-    public void seekingCoral(){
-        if(!inSensor() && !outSensor()){
-            intakeLeft.set(CORAL_INTAKE_SPEED);
-            intakeRight.set(CORAL_INTAKE_SPEED);
-            motorSpeed = CORAL_INTAKE_SPEED;
-        } else if(inSensor() && !outSensor()) {
-            intakeLeft.set(CORAL_SLOW_SPEED);
-            intakeRight.set(CORAL_SLOW_SPEED);
-            motorSpeed = CORAL_SLOW_SPEED;
-        } else {
-            intakeLeft.set(0);
-            intakeRight.set(0);
-            motorSpeed = 0;
-        }
-    }
-
-    /** run end command that intakes. Upon ending, it will use the runIntake command to run slowly until only the outSensor boolean is true*/
+    /**
+     * run end command that intakes. Upon ending, it will use the runIntake command
+     * to run slowly until only the outSensor boolean is true
+     */
     public Command slowEndIntake(double firstSpeed) {
 
         return runEnd(() -> {
@@ -137,6 +130,42 @@ public class CoralSubsystem extends SubsystemBase {
         },
                 () -> {
                     runIntake(CORAL_SLOW_SPEED).until(() -> (outSensor() && !inSensor()));
+                });
+    }
+
+    public void seekingCoral() {
+        if (!inSensor() && !outSensor()) {
+            intakeLeft.set(CORAL_INTAKE_SPEED);
+            intakeRight.set(CORAL_INTAKE_SPEED);
+            motorSpeed = CORAL_INTAKE_SPEED;
+        } else if (inSensor() && !outSensor()) {
+            intakeLeft.set(CORAL_SLOW_SPEED);
+            intakeRight.set(CORAL_SLOW_SPEED);
+            motorSpeed = CORAL_SLOW_SPEED;
+        } else {
+            intakeLeft.set(0);
+            intakeRight.set(0);
+            motorSpeed = 0;
+        }
+    }
+
+    /**
+     * run end command that is intended for L1 coral shots. Runs the left and right
+     * intake at different speeds. Stops both motors upon ending
+     */
+    public Command trough() {
+        return runEnd(() -> {
+            intakeLeft.set(CORAL_TROUGH_LEFT_SPEED);
+            intakeRight.set(CORAL_TROUGH_RIGHT_SPEED);
+            motorSpeed = CORAL_TROUGH_LEFT_SPEED;
+            secondaryMotorSpeed = CORAL_TROUGH_RIGHT_SPEED;
+
+        },
+                () -> {
+                    intakeLeft.set(0);
+                    intakeRight.set(0);
+                    motorSpeed = 0;
+                    secondaryMotorSpeed = 0;
                 });
     }
 
